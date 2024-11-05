@@ -47,31 +47,36 @@ def solve_edo():
 root = tk.Tk()
 root.title("Método de Euler para EDO")
 
+# Configurar la expansión en filas y columnas
+root.columnconfigure(1, weight=1)
+for i in range(6):
+    root.rowconfigure(i, weight=1)
+
 # Etiquetas y campos de entrada
 tk.Label(root, text="Ecuación diferencial (en términos de x e y):").grid(
-    row=0, column=0
+    row=0, column=0, sticky="e"
 )
 entry_func = tk.Entry(root, width=30)
-entry_func.grid(row=0, column=1)
+entry_func.grid(row=0, column=1, padx=10, pady=5, sticky="we")
 
-tk.Label(root, text="x0 (valor inicial de x):").grid(row=1, column=0)
+tk.Label(root, text="x0 (valor inicial de x):").grid(row=1, column=0, sticky="e")
 entry_x0 = tk.Entry(root, width=10)
-entry_x0.grid(row=1, column=1)
+entry_x0.grid(row=1, column=1, padx=10, pady=5, sticky="we")
 
-tk.Label(root, text="y0 (valor inicial de y):").grid(row=2, column=0)
+tk.Label(root, text="y0 (valor inicial de y):").grid(row=2, column=0, sticky="e")
 entry_y0 = tk.Entry(root, width=10)
-entry_y0.grid(row=2, column=1)
+entry_y0.grid(row=2, column=1, padx=10, pady=5, sticky="we")
 
-tk.Label(root, text="xf (valor final de x):").grid(row=3, column=0)
+tk.Label(root, text="xf (valor final de x):").grid(row=3, column=0, sticky="e")
 entry_xf = tk.Entry(root, width=10)
-entry_xf.grid(row=3, column=1)
+entry_xf.grid(row=3, column=1, padx=10, pady=5, sticky="we")
 
-tk.Label(root, text="h (tamaño del paso):").grid(row=4, column=0)
+tk.Label(root, text="h (tamaño del paso):").grid(row=4, column=0, sticky="e")
 entry_h = tk.Entry(root, width=10)
-entry_h.grid(row=4, column=1)
+entry_h.grid(row=4, column=1, padx=10, pady=5, sticky="we")
 
 # Botón para resolver la EDO
 btn_solve = tk.Button(root, text="Resolver EDO", command=solve_edo)
-btn_solve.grid(row=5, column=0, columnspan=2, pady=10)
+btn_solve.grid(row=5, column=0, columnspan=2, pady=10, padx=10, sticky="nsew")
 
 root.mainloop()
