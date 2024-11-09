@@ -54,6 +54,6 @@ docker-compose.override.yml
 .DS_Store
 Thumbs.db
 
-dist\
-Librerias\
-build\
+dist/
+Librerias/
+build/
