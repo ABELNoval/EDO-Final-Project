@@ -53,6 +53,3 @@ docker-compose.override.yml
 # Archivos temporales del sistema operativo
 .DS_Store
 Thumbs.db
-
-dist/
-Librerias/

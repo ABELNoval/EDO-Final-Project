@@ -1,82 +1,152 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import tkinter as tk
 from tkinter import messagebox
+import numpy as np
+import matplotlib.pyplot as plt
+import math
 
 
-def euler_method(f, x0, y0, xf, h):
-    n_steps = int((xf - x0) / h) + 1
-    x_values = np.linspace(x0, xf, n_steps)
-    y_values = np.zeros(n_steps)
-    y_values[0] = y0
+# Función que implementa el Método de Euler
+def euler_method(f, x0, y0, h, n):
+    x_values = [x0]
+    y_values = [y0]
 
-    for i in range(1, n_steps):
-        y_values[i] = y_values[i - 1] + h * f(x_values[i - 1], y_values[i - 1])
+    for i in range(1, n + 1):
+        x = x_values[-1]
+        y = y_values[-1]
+        y_new = y + h * f(x, y)  # Método de Euler: y(i+1) = y(i) + h*f(x(i), y(i))
+        x_new = x + h
+
+        x_values.append(x_new)
+        y_values.append(y_new)
 
     return x_values, y_values
 
 
-def solve_edo():
+# Función que convierte la ecuación ingresada en una función de Python
+def create_function(edo_str):
     try:
-        # Obtener valores de entrada del usuario
-        x0 = float(entry_x0.get())
-        y0 = float(entry_y0.get())
-        xf = float(entry_xf.get())
-        h = float(entry_h.get())
+        # Reemplazar los operadores de la ecuación de texto para hacerla ejecutable
+        # En este caso, 'diff(y,x)' es equivalente a 'y'
+        edo_str = edo_str.replace("diff(y,x)", "y")
+        edo_str = edo_str.replace("x", "x")  # Asegúrate de que 'x' se reconozca
+        edo_str = edo_str.replace("y", "y")  # Asegúrate de que 'y' se reconozca
+        edo_str = edo_str.replace("sin", "math.sin")
+        edo_str = edo_str.replace("cos", "math.cos")
+        edo_str = edo_str.replace("tan", "math.tan")
+        edo_str = edo_str.replace(
+            "log", "math.log"
+        )  # log se refiere al logaritmo natural en math
+        edo_str = edo_str.replace(
+            "ln", "math.log"
+        )  # ln también se refiere al logaritmo natural en math
+        edo_str = edo_str.replace(
+            "e", "math.e"
+        )  # Reemplazar 'e' por la constante math.e
+        edo_str = edo_str.replace("exp", "math.exp")
 
-        # Parseo de la función ingresada
-        func_str = entry_func.get()
-        func = lambda x, y: eval(func_str)
+        # Evaluar la ecuación como una función
+        def f(x, y):
+            return eval(
+                edo_str
+            )  # Usamos eval para evaluar la ecuación como una función en x y y
 
-        # Resolver la EDO usando el método de Euler
-        x_values, y_values = euler_method(func, x0, y0, xf, h)
+        return f
+    except Exception as e:
+        messagebox.showerror("Error", f"Hubo un error al interpretar la EDO: {e}")
+        return None
 
-        # Graficar el resultado
-        plt.plot(x_values, y_values, label="Aproximación con Euler", marker="o")
+
+# Función que se ejecuta al hacer clic en "Resolver"
+def solve():
+    edo_str = edo_entry.get()  # Obtener la ecuación ingresada
+    x0 = float(x0_entry.get())  # Obtener el valor de x0
+    y0 = float(y0_entry.get())  # Obtener el valor de y0
+    h = float(h_entry.get())  # Obtener el valor de h
+    n = int(n_entry.get())  # Obtener el número de pasos
+
+    # Crear la función que representa la EDO
+    f = create_function(edo_str)
+
+    if f is not None:
+        # Resolver la EDO con el método de Euler
+        x_values, y_values = euler_method(f, x0, y0, h, n)
+
+        # Graficar la solución
+        plt.plot(x_values, y_values, marker="o", color="b", label="Método de Euler")
         plt.xlabel("x")
         plt.ylabel("y")
+        plt.title("Solución de la EDO usando el Método de Euler")
+        plt.grid(True)
         plt.legend()
-        plt.title("Método de Euler para EDO")
         plt.show()
 
-    except Exception as e:
-        messagebox.showerror("Error", f"Ocurrió un error: {e}")
+
+# Función para mostrar el mensaje de ayuda
+def show_help():
+    help_message = (
+        "Este programa resuelve ecuaciones diferenciales de la forma 'y' = f(x, y)\n\n"
+        "1. Introduzca la ecuación diferencial en la caja de texto 'Ecuación diferencial'\n"
+        "   Ejemplo: 'diff(y,x) - (x + y/5)'\n"
+        "2. Ingrese los valores de x0, y0, h y n para resolver la ecuación.\n"
+        "3. Haga clic en 'Resolver' para ver la solución y la gráfica."
+    )
+    messagebox.showinfo("Ayuda", help_message)
 
 
-# Crear la ventana principal
+# Crear la interfaz gráfica
 root = tk.Tk()
-root.title("Método de Euler para EDO")
+root.title("Método de Euler para EDOs")
 
-# Configurar la expansión en filas y columnas
-root.columnconfigure(1, weight=1)
-for i in range(6):
-    root.rowconfigure(i, weight=1)
+# Establecer el tamaño de la ventana
+root.geometry("500x350")
 
-# Etiquetas y campos de entrada
-tk.Label(root, text="Ecuación diferencial (en términos de x e y):").grid(
-    row=0, column=0, sticky="e"
+# Etiquetas y campos de entrada para los parámetros
+frame = tk.Frame(root)
+frame.pack(padx=10, pady=10)
+
+tk.Label(frame, text="Ecuación diferencial (como 'y' = ...')").grid(
+    row=0, column=0, sticky="e", padx=5, pady=5
 )
-entry_func = tk.Entry(root, width=30)
-entry_func.grid(row=0, column=1, padx=10, pady=5, sticky="we")
+edo_entry = tk.Entry(frame, width=50)
+edo_entry.grid(row=0, column=1, padx=5, pady=5)
 
-tk.Label(root, text="x0 (valor inicial de x):").grid(row=1, column=0, sticky="e")
-entry_x0 = tk.Entry(root, width=10)
-entry_x0.grid(row=1, column=1, padx=10, pady=5, sticky="we")
+tk.Label(frame, text="x0 (Valor inicial de x)").grid(
+    row=1, column=0, sticky="e", padx=5, pady=5
+)
+x0_entry = tk.Entry(frame)
+x0_entry.grid(row=1, column=1, padx=5, pady=5)
 
-tk.Label(root, text="y0 (valor inicial de y):").grid(row=2, column=0, sticky="e")
-entry_y0 = tk.Entry(root, width=10)
-entry_y0.grid(row=2, column=1, padx=10, pady=5, sticky="we")
+tk.Label(frame, text="y0 (Valor inicial de y)").grid(
+    row=2, column=0, sticky="e", padx=5, pady=5
+)
+y0_entry = tk.Entry(frame)
+y0_entry.grid(row=2, column=1, padx=5, pady=5)
 
-tk.Label(root, text="xf (valor final de x):").grid(row=3, column=0, sticky="e")
-entry_xf = tk.Entry(root, width=10)
-entry_xf.grid(row=3, column=1, padx=10, pady=5, sticky="we")
+tk.Label(frame, text="h (Paso de integración)").grid(
+    row=3, column=0, sticky="e", padx=5, pady=5
+)
+h_entry = tk.Entry(frame)
+h_entry.grid(row=3, column=1, padx=5, pady=5)
 
-tk.Label(root, text="h (tamaño del paso):").grid(row=4, column=0, sticky="e")
-entry_h = tk.Entry(root, width=10)
-entry_h.grid(row=4, column=1, padx=10, pady=5, sticky="we")
+tk.Label(frame, text="n (Número de pasos)").grid(
+    row=4, column=0, sticky="e", padx=5, pady=5
+)
+n_entry = tk.Entry(frame)
+n_entry.grid(row=4, column=1, padx=5, pady=5)
 
-# Botón para resolver la EDO
-btn_solve = tk.Button(root, text="Resolver EDO", command=solve_edo)
-btn_solve.grid(row=5, column=0, columnspan=2, pady=10, padx=10, sticky="nsew")
+# Botones para resolver y mostrar ayuda
+button_frame = tk.Frame(root)
+button_frame.pack(pady=10)
 
+solve_button = tk.Button(button_frame, text="Resolver", command=solve, width=20)
+solve_button.grid(row=0, column=0, padx=10)
+
+help_button = tk.Button(button_frame, text="Ayuda", command=show_help, width=20)
+help_button.grid(row=0, column=1, padx=10)
+
+# Botón para salir
+exit_button = tk.Button(root, text="Salir", command=root.quit, width=20)
+exit_button.pack(pady=10)
+
+# Ejecutar la interfaz
 root.mainloop()
