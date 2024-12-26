@@ -1,152 +1,250 @@
-import tkinter as tk
-from tkinter import messagebox
 import numpy as np
 import matplotlib.pyplot as plt
-import math
+import tkinter as tk
+from tkinter import messagebox, ttk
 
 
-# Función que implementa el Método de Euler
-def euler_method(f, x0, y0, h, n):
-    x_values = [x0]
-    y_values = [y0]
+def euler_method(f, x0, y0, xf, h):
+    n_steps = int((xf - x0) / h) + 1
+    x_values = np.linspace(x0, xf, n_steps)
+    y_values = np.zeros(n_steps)
+    y_values[0] = y0
 
-    for i in range(1, n + 1):
-        x = x_values[-1]
-        y = y_values[-1]
-        y_new = y + h * f(x, y)  # Método de Euler: y(i+1) = y(i) + h*f(x(i), y(i))
-        x_new = x + h
-
-        x_values.append(x_new)
-        y_values.append(y_new)
+    for i in range(1, n_steps):
+        y_values[i] = y_values[i - 1] + h * f(x_values[i - 1], y_values[i - 1])
 
     return x_values, y_values
 
 
-# Función que convierte la ecuación ingresada en una función de Python
-def create_function(edo_str):
+def validate_and_correct(x0, y0, xf, h, func_str):
+    messages = []
+    corrections = []
+
+    if xf <= x0:
+        messages.append(
+            "Error: El valor final de x (xf) debe ser mayor que el valor inicial (x0)."
+        )
+        corrections.append("Ajustando xf a x0 + 1.")
+        xf = x0 + 1
+
+    if h <= 0:
+        messages.append("Error: El tamaño de paso (h) debe ser positivo.")
+        corrections.append("Ajustando h a 0.1.")
+        h = 0.1
+
     try:
-        # Reemplazar los operadores de la ecuación de texto para hacerla ejecutable
-        # En este caso, 'diff(y,x)' es equivalente a 'y'
-        edo_str = edo_str.replace("diff(y,x)", "y")
-        edo_str = edo_str.replace("x", "x")  # Asegúrate de que 'x' se reconozca
-        edo_str = edo_str.replace("y", "y")  # Asegúrate de que 'y' se reconozca
-        edo_str = edo_str.replace("sin", "math.sin")
-        edo_str = edo_str.replace("cos", "math.cos")
-        edo_str = edo_str.replace("tan", "math.tan")
-        edo_str = edo_str.replace(
-            "log", "math.log"
-        )  # log se refiere al logaritmo natural en math
-        edo_str = edo_str.replace(
-            "ln", "math.log"
-        )  # ln también se refiere al logaritmo natural en math
-        edo_str = edo_str.replace(
-            "e", "math.e"
-        )  # Reemplazar 'e' por la constante math.e
-        edo_str = edo_str.replace("exp", "math.exp")
-
-        # Evaluar la ecuación como una función
-        def f(x, y):
-            return eval(
-                edo_str
-            )  # Usamos eval para evaluar la ecuación como una función en x y y
-
-        return f
+        func = lambda x, y: eval(func_str)
+        test_val = func(x0, y0)  # Validar que la función sea evaluable
     except Exception as e:
-        messagebox.showerror("Error", f"Hubo un error al interpretar la EDO: {e}")
-        return None
+        raise ValueError(f"La función ingresada no es válida: {e}")
+
+    return x0, y0, xf, h, func, messages, corrections
 
 
-# Función que se ejecuta al hacer clic en "Resolver"
-def solve():
-    edo_str = edo_entry.get()  # Obtener la ecuación ingresada
-    x0 = float(x0_entry.get())  # Obtener el valor de x0
-    y0 = float(y0_entry.get())  # Obtener el valor de y0
-    h = float(h_entry.get())  # Obtener el valor de h
-    n = int(n_entry.get())  # Obtener el número de pasos
+def handle_numerical_issues(func, x0, y0, xf, h):
+    report = []
+    corrections = []
 
-    # Crear la función que representa la EDO
-    f = create_function(edo_str)
+    if h > (xf - x0) / 10:
+        report.append(f"Advertencia: El paso h={h} podría causar inestabilidad.")
+        corrections.append(f"Reducimos a h={(xf - x0) / 20:.4f}.")
+        h = (xf - x0) / 20
 
-    if f is not None:
-        # Resolver la EDO con el método de Euler
-        x_values, y_values = euler_method(f, x0, y0, h, n)
+    if abs(xf - x0) > 100 and h < 1e-3:
+        report.append(
+            "Advertencia: El rango combinado con un paso pequeño (h) podría causar acumulación de errores."
+        )
+        corrections.append("Ajustando h a un mínimo de 1e-3.")
+        h = max(h, 1e-3)
 
-        # Graficar la solución
-        plt.plot(x_values, y_values, marker="o", color="b", label="Método de Euler")
-        plt.xlabel("x")
-        plt.ylabel("y")
-        plt.title("Solución de la EDO usando el Método de Euler")
-        plt.grid(True)
-        plt.legend()
-        plt.show()
+    try:
+        test_x = np.linspace(x0, xf, 10)
+        test_y = [y0]
+        for i in range(1, len(test_x)):
+            dydx_prev = func(test_x[i - 1], test_y[-1])
+            dydx_curr = func(test_x[i], test_y[-1] + h * dydx_prev)
+            if abs(dydx_curr - dydx_prev) > 10:
+                report.append(
+                    "Advertencia: Se detectó rigidez, cambios rápidos en la derivada."
+                )
+                corrections.append(
+                    "Considere un método más adecuado para EDOs rígidas."
+                )
+                break
+    except Exception as e:
+        report.append(f"Problema al evaluar rigidez: {e}")
+
+    try:
+        test_points = [(x0 + i * h, y0 + i * h * func(x0, y0)) for i in range(5)]
+        for i in range(1, len(test_points)):
+            diff = abs(func(*test_points[i]) - func(*test_points[i - 1]))
+            if diff > 10:
+                report.append("Advertencia: Se detectaron discontinuidades en f(x, y).")
+                corrections.append("Revise la función ingresada por posibles errores.")
+                break
+    except Exception as e:
+        report.append(f"No se pudo verificar continuidad: {e}")
+
+    return h, report, corrections
 
 
-# Función para mostrar el mensaje de ayuda
-def show_help():
-    help_message = (
-        "Este programa resuelve ecuaciones diferenciales de la forma 'y' = f(x, y)\n\n"
-        "1. Introduzca la ecuación diferencial en la caja de texto 'Ecuación diferencial'\n"
-        "   Ejemplo: 'diff(y,x) - (x + y/5)'\n"
-        "2. Ingrese los valores de x0, y0, h y n para resolver la ecuación.\n"
-        "3. Haga clic en 'Resolver' para ver la solución y la gráfica."
+def plot_results(original_x, original_y, corrected_x, corrected_y, messages):
+    plt.figure(figsize=(14, 6))
+
+    plt.subplot(1, 2, 1)
+    plt.plot(original_x, original_y, label="Aproximación Original (Euler)", marker="o")
+    plt.title("Solución Original con Problemas Numéricos")
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.axhline(0, color="black", lw=0.5, ls="--")
+    plt.axvline(0, color="black", lw=0.5, ls="--")
+    plt.legend()
+
+    for msg in messages:
+        plt.annotate(
+            msg,
+            xy=(original_x[-1], original_y[-1]),
+            textcoords="offset points",
+            xytext=(-10, 10),
+            ha="center",
+            fontsize=8,
+            color="red",
+        )
+
+    plt.subplot(1, 2, 2)
+    plt.plot(
+        corrected_x,
+        corrected_y,
+        label="Aproximación Corregida",
+        marker="o",
+        color="orange",
     )
-    messagebox.showinfo("Ayuda", help_message)
+    plt.title("Solución Corregida")
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.axhline(0, color="black", lw=0.5, ls="--")
+    plt.axvline(0, color="black", lw=0.5, ls="--")
+    plt.legend()
+
+    plt.tight_layout()
+    plt.show()
 
 
-# Crear la interfaz gráfica
+def solve_edo():
+    try:
+        x0 = float(entry_x0.get())
+        y0 = float(entry_y0.get())
+        xf = float(entry_xf.get())
+        h = float(entry_h.get())
+        func_str = entry_func.get()
+
+        x0, y0, xf, h, func, messages, corrections = validate_and_correct(
+            x0, y0, xf, h, func_str
+        )
+
+        h, additional_report, additional_corrections = handle_numerical_issues(
+            func, x0, y0, xf, h
+        )
+
+        # Limpiar las áreas de texto
+        error_tab.delete(1.0, tk.END)
+        error_solution_tab.delete(1.0, tk.END)
+
+        # Si no hay errores, notificar al usuario
+        if not messages and not additional_report:
+            messagebox.showinfo(
+                "Resultado", "No se encontraron errores, la solución es válida."
+            )
+            error_tab.insert(tk.END, "No se encontraron errores.\n")
+            error_solution_tab.insert(tk.END, "No se realizaron correcciones.\n")
+        else:
+            if messages:
+                error_tab.insert(tk.END, "\n".join(messages) + "\n")
+            if additional_report:
+                error_tab.insert(tk.END, "\n".join(additional_report) + "\n")
+
+            if corrections or additional_corrections:
+                error_solution_tab.insert(
+                    tk.END, "\n".join(corrections + additional_corrections) + "\n"
+                )
+            else:
+                error_solution_tab.insert(
+                    tk.END, "No se realizaron correcciones necesarias.\n"
+                )
+
+        original_x_values, original_y_values = euler_method(func, x0, y0, xf, h)
+        corrected_x_values, corrected_y_values = euler_method(func, x0, y0, xf, h)
+
+        plot_results(
+            original_x_values,
+            original_y_values,
+            corrected_x_values,
+            corrected_y_values,
+            messages,
+        )
+
+    except Exception as e:
+        messagebox.showerror("Error", f"Ocurrió un error: {e}")
+
+
+# Crear la ventana principal
 root = tk.Tk()
-root.title("Método de Euler para EDOs")
+root.title("Método de Euler para EDO")
 
-# Establecer el tamaño de la ventana
-root.geometry("500x350")
+# Crear el notebook para pestañas
+notebook = ttk.Notebook(root)
+notebook.pack(expand=True, fill="both")
 
-# Etiquetas y campos de entrada para los parámetros
-frame = tk.Frame(root)
-frame.pack(padx=10, pady=10)
+# Crear la pestaña de gráficas
+graph_frame = ttk.Frame(notebook)
+notebook.add(graph_frame, text="Gráficas")
 
-tk.Label(frame, text="Ecuación diferencial (como 'y' = ...')").grid(
-    row=0, column=0, sticky="e", padx=5, pady=5
-)
-edo_entry = tk.Entry(frame, width=50)
-edo_entry.grid(row=0, column=1, padx=5, pady=5)
+# Crear la pestaña de errores
+error_frame = ttk.Frame(notebook)
+notebook.add(error_frame, text="Errores")
 
-tk.Label(frame, text="x0 (Valor inicial de x)").grid(
-    row=1, column=0, sticky="e", padx=5, pady=5
-)
-x0_entry = tk.Entry(frame)
-x0_entry.grid(row=1, column=1, padx=5, pady=5)
+# Crear un widget de texto para mostrar errores
+error_tab = tk.Text(error_frame, wrap=tk.WORD, height=10, width=50)
+error_tab.pack(expand=True, fill="both", padx=10, pady=5)
 
-tk.Label(frame, text="y0 (Valor inicial de y)").grid(
-    row=2, column=0, sticky="e", padx=5, pady=5
-)
-y0_entry = tk.Entry(frame)
-y0_entry.grid(row=2, column=1, padx=5, pady=5)
+# Crear un widget de texto para mostrar soluciones a los errores
+error_solution_tab = tk.Text(error_frame, wrap=tk.WORD, height=10, width=50)
+error_solution_tab.pack(expand=True, fill="both", padx=10, pady=5)
 
-tk.Label(frame, text="h (Paso de integración)").grid(
-    row=3, column=0, sticky="e", padx=5, pady=5
-)
-h_entry = tk.Entry(frame)
-h_entry.grid(row=3, column=1, padx=5, pady=5)
+# Etiquetas y campos de entrada usando pack()
+label_func = tk.Label(root, text="Ecuación diferencial (en términos de x e y):")
+label_func.pack(anchor="w", padx=10, pady=5)
 
-tk.Label(frame, text="n (Número de pasos)").grid(
-    row=4, column=0, sticky="e", padx=5, pady=5
-)
-n_entry = tk.Entry(frame)
-n_entry.grid(row=4, column=1, padx=5, pady=5)
+entry_func = tk.Entry(root, width=30)
+entry_func.pack(padx=10, pady=5)
 
-# Botones para resolver y mostrar ayuda
-button_frame = tk.Frame(root)
-button_frame.pack(pady=10)
+label_x0 = tk.Label(root, text="x0 (valor inicial de x):")
+label_x0.pack(anchor="w", padx=10, pady=5)
 
-solve_button = tk.Button(button_frame, text="Resolver", command=solve, width=20)
-solve_button.grid(row=0, column=0, padx=10)
+entry_x0 = tk.Entry(root, width=10)
+entry_x0.pack(padx=10, pady=5)
 
-help_button = tk.Button(button_frame, text="Ayuda", command=show_help, width=20)
-help_button.grid(row=0, column=1, padx=10)
+label_y0 = tk.Label(root, text="y0 (valor inicial de y):")
+label_y0.pack(anchor="w", padx=10, pady=5)
 
-# Botón para salir
-exit_button = tk.Button(root, text="Salir", command=root.quit, width=20)
-exit_button.pack(pady=10)
+entry_y0 = tk.Entry(root, width=10)
+entry_y0.pack(padx=10, pady=5)
 
-# Ejecutar la interfaz
+label_xf = tk.Label(root, text="xf (valor final de x):")
+label_xf.pack(anchor="w", padx=10, pady=5)
+
+entry_xf = tk.Entry(root, width=10)
+entry_xf.pack(padx=10, pady=5)
+
+label_h = tk.Label(root, text="h (tamaño del paso):")
+label_h.pack(anchor="w", padx=10, pady=5)
+
+entry_h = tk.Entry(root, width=10)
+entry_h.pack(padx=10, pady=5)
+
+# Botón para resolver la EDO
+btn_solve = tk.Button(root, text="Resolver EDO", command=solve_edo)
+btn_solve.pack(pady=10)
+
+# Iniciar el bucle principal de la interfaz
 root.mainloop()
