@@ -1,0 +1,55 @@
+# Entornos virtuales
+venv/
+env/
+*.venv
+*.env
+
+# Archivos de caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Archivos de configuración de desarrollo local
+*.env
+.env.*
+*.vscode/
+.idea/
+*.swp
+*.swo
+
+# Archivos generados por herramientas
+.Python
+*.pyo
+*.pyd
+
+# Archivos de registro
+*.log
+
+# Paquetes compilados
+*.egg
+*.egg-info/
+dist/
+build/
+*.wheel
+
+# Librerías instaladas localmente
+*.pip/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Archivos creados por pruebas
+.coverage
+.tox/
+.nox/
+*.cover
+*.coverage.*
+*.py,cover
+.hypothesis/
+
+# Docker y configuraciones similares
+*.dockerignore
+docker-compose.override.yml
+
+# Archivos temporales del sistema operativo
+.DS_Store
+Thumbs.db
