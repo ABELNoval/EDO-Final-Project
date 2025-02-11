@@ -141,7 +141,7 @@ def solve_edo():
         x0, y0, xf, h, func, messages, corrections = validate_and_correct(
             x0, y0, xf, h, func_str
         )
-
+        original_x_values, original_y_values = euler_method(func, x0, y0, xf, h)
         h, additional_report, additional_corrections = handle_numerical_issues(
             func, x0, y0, xf, h
         )
@@ -172,7 +172,6 @@ def solve_edo():
                     tk.END, "No se realizaron correcciones necesarias.\n"
                 )
 
-        original_x_values, original_y_values = euler_method(func, x0, y0, xf, h)
         corrected_x_values, corrected_y_values = euler_method(func, x0, y0, xf, h)
 
         plot_results(
