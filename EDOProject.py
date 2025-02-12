@@ -34,7 +34,7 @@ def validate_and_correct(x0, y0, xf, h, func_str):
 
     try:
         func = lambda x, y: eval(func_str)
-        test_val = func(x0, y0)  # Validar que la función sea evaluable
+        test_val = func(x0, y0)
     except Exception as e:
         raise ValueError(f"La función ingresada no es válida: {e}")
 
@@ -88,11 +88,52 @@ def handle_numerical_issues(func, x0, y0, xf, h):
     return h, report, corrections
 
 
-def plot_results(original_x, original_y, corrected_x, corrected_y, messages):
+def plot_results(original_x, original_y, corrected_x, corrected_y, messages, func):
     plt.figure(figsize=(14, 6))
 
+    # Generar grid adaptativo
+    x_all = np.concatenate([original_x, corrected_x])
+    y_all = np.concatenate([original_y, corrected_y])
+
+    x_min, x_max = x_all.min(), x_all.max()
+    y_min, y_max = y_all.min(), y_all.max()
+
+    pad_x = 0.1 * (x_max - x_min) if x_max != x_min else 0.5
+    pad_y = 0.1 * (y_max - y_min) if y_max != y_min else 0.5
+
+    x_grid = np.linspace(x_min - pad_x, x_max + pad_x, 20)
+    y_grid = np.linspace(y_min - pad_y, y_max + pad_y, 20)
+
+    X, Y = np.meshgrid(x_grid, y_grid)
+    U = np.ones_like(X)
+    V = func(X, Y)
+
+    # Subplot original
     plt.subplot(1, 2, 1)
-    plt.plot(original_x, original_y, label="Aproximación Original (Euler)", marker="o")
+    plt.quiver(
+        X,
+        Y,
+        U,
+        V,
+        color="lightgray",
+        angles="xy",
+        scale_units="xy",
+        scale=25,
+        width=0.003,
+        zorder=1,
+        alpha=0.7,
+    )
+    plt.plot(
+        original_x,
+        original_y,
+        label="Aproximación Original (Euler)",
+        marker="o",
+        markersize=5,
+        linewidth=2,
+        color="blue",
+        zorder=3,
+    )
+
     plt.title("Solución Original con Problemas Numéricos")
     plt.xlabel("x")
     plt.ylabel("y")
@@ -109,16 +150,35 @@ def plot_results(original_x, original_y, corrected_x, corrected_y, messages):
             ha="center",
             fontsize=8,
             color="red",
+            zorder=4,
         )
 
+    # Subplot corregido
     plt.subplot(1, 2, 2)
+    plt.quiver(
+        X,
+        Y,
+        U,
+        V,
+        color="lightgray",
+        angles="xy",
+        scale_units="xy",
+        scale=25,
+        width=0.003,
+        zorder=1,
+        alpha=0.7,
+    )
     plt.plot(
         corrected_x,
         corrected_y,
         label="Aproximación Corregida",
         marker="o",
         color="orange",
+        markersize=5,
+        linewidth=2,
+        zorder=3,
     )
+
     plt.title("Solución Corregida")
     plt.xlabel("x")
     plt.ylabel("y")
@@ -141,16 +201,15 @@ def solve_edo():
         x0, y0, xf, h, func, messages, corrections = validate_and_correct(
             x0, y0, xf, h, func_str
         )
+
         original_x_values, original_y_values = euler_method(func, x0, y0, xf, h)
         h, additional_report, additional_corrections = handle_numerical_issues(
             func, x0, y0, xf, h
         )
 
-        # Limpiar las áreas de texto
         error_tab.delete(1.0, tk.END)
         error_solution_tab.delete(1.0, tk.END)
 
-        # Si no hay errores, notificar al usuario
         if not messages and not additional_report:
             messagebox.showinfo(
                 "Resultado", "No se encontraron errores, la solución es válida."
@@ -180,70 +239,65 @@ def solve_edo():
             corrected_x_values,
             corrected_y_values,
             messages,
+            func,
         )
 
     except Exception as e:
         messagebox.showerror("Error", f"Ocurrió un error: {e}")
 
 
-# Crear la ventana principal
+# Configuración de la interfaz gráfica
 root = tk.Tk()
 root.title("Método de Euler para EDO")
 
-# Crear el notebook para pestañas
 notebook = ttk.Notebook(root)
 notebook.pack(expand=True, fill="both")
 
-# Crear la pestaña de gráficas
 graph_frame = ttk.Frame(notebook)
 notebook.add(graph_frame, text="Gráficas")
 
-# Crear la pestaña de errores
 error_frame = ttk.Frame(notebook)
 notebook.add(error_frame, text="Errores")
 
-# Crear un widget de texto para mostrar errores
 error_tab = tk.Text(error_frame, wrap=tk.WORD, height=10, width=50)
 error_tab.pack(expand=True, fill="both", padx=10, pady=5)
 
-# Crear un widget de texto para mostrar soluciones a los errores
 error_solution_tab = tk.Text(error_frame, wrap=tk.WORD, height=10, width=50)
 error_solution_tab.pack(expand=True, fill="both", padx=10, pady=5)
 
-# Etiquetas y campos de entrada usando pack()
-label_func = tk.Label(root, text="Ecuación diferencial (en términos de x e y):")
+# Componentes de entrada
+label_func = tk.Label(root, text="Ecuación diferencial (usar x e y):")
 label_func.pack(anchor="w", padx=10, pady=5)
 
 entry_func = tk.Entry(root, width=30)
 entry_func.pack(padx=10, pady=5)
+entry_func.insert(0, "x*y")  # Ejemplo por defecto
 
 label_x0 = tk.Label(root, text="x0 (valor inicial de x):")
 label_x0.pack(anchor="w", padx=10, pady=5)
-
 entry_x0 = tk.Entry(root, width=10)
 entry_x0.pack(padx=10, pady=5)
+entry_x0.insert(0, "0")
 
 label_y0 = tk.Label(root, text="y0 (valor inicial de y):")
 label_y0.pack(anchor="w", padx=10, pady=5)
-
 entry_y0 = tk.Entry(root, width=10)
 entry_y0.pack(padx=10, pady=5)
+entry_y0.insert(0, "1")
 
 label_xf = tk.Label(root, text="xf (valor final de x):")
 label_xf.pack(anchor="w", padx=10, pady=5)
-
 entry_xf = tk.Entry(root, width=10)
 entry_xf.pack(padx=10, pady=5)
+entry_xf.insert(0, "2")
 
 label_h = tk.Label(root, text="h (tamaño del paso):")
 label_h.pack(anchor="w", padx=10, pady=5)
-
 entry_h = tk.Entry(root, width=10)
 entry_h.pack(padx=10, pady=5)
+entry_h.insert(0, "0.1")
 
-# Botón para resolver la EDO
 btn_solve = tk.Button(root, text="Resolver EDO", command=solve_edo)
 btn_solve.pack(pady=10)
 
-# Iniciar el bucle principal de la interfaz
 root.mainloop()
